@@ -1,6 +1,14 @@
 pipeline {
   agent any
 
+  parameters {
+    choice(
+      name: 'ACTION',
+      choices: ['create', 'destroy'],
+      description: 'Choose whether to create or destroy the ECS infrastructure.'
+    )
+  }
+
   environment {
     AWS_REGION = 'ap-south-1'
     APP_NAME   = 'ecs-ci-cd-app'
@@ -17,6 +25,9 @@ pipeline {
     }
 
     stage('🐳 Build & Push Docker Image to ECR') {
+      when {
+        expression { return params.ACTION == 'create' }
+      }
       steps {
         dir('app') {
           sh """
@@ -34,24 +45,37 @@ pipeline {
       }
     }
 
-    stage('🛠️ Terraform Apply ECS Infra') {
+    stage('🛠️ Terraform Create/Destroy ECS Infra') {
       steps {
         dir('terraform') {
           withCredentials([[
             $class: 'AmazonWebServicesCredentialsBinding',
             credentialsId: 'aws-credentials'
           ]]) {
-            sh """
-              echo "🚀 Running Terraform..."
-              terraform init
-              terraform apply -auto-approve -var="image_url=$ECR_REPO:$IMAGE_TAG"
-            """
+            script {
+              if (params.ACTION == 'destroy') {
+                sh """
+                  echo "⚠️ Destroying ECS Infrastructure..."
+                  terraform init
+                  terraform destroy -auto-approve
+                """
+              } else {
+                sh """
+                  echo "🚀 Creating/Updating ECS Infrastructure..."
+                  terraform init
+                  terraform apply -auto-approve -var="image_url=$ECR_REPO:$IMAGE_TAG"
+                """
+              }
+            }
           }
         }
       }
     }
 
     stage('🔁 Force ECS Service Update') {
+      when {
+        expression { return params.ACTION == 'create' }
+      }
       steps {
         sh """
           echo "🔄 Updating ECS service with new image..."
@@ -67,10 +91,10 @@ pipeline {
 
   post {
     success {
-      echo "✅ CI/CD pipeline completed successfully!"
+      echo "✅ CI/CD pipeline (${params.ACTION.toUpperCase()}) completed successfully!"
     }
     failure {
-      echo "❌ Pipeline failed. Check logs for errors."
+      echo "❌ Pipeline failed during ${params.ACTION.toUpperCase()} operation. Check logs!"
     }
   }
 }
