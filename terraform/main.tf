@@ -40,6 +40,12 @@ resource "aws_subnet" "public_1" {
   map_public_ip_on_launch = true
 }
 
+resource "aws_subnet" "public_subnet_2" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "ap-south-1b"
+  map_public_ip_on_launch = true
+}
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 }
@@ -58,6 +64,10 @@ resource "aws_route_table_association" "public_1" {
   route_table_id = aws_route_table.public.id
 }
 
+resource "aws_route_table_association" "public_2" {
+  subnet_id      = aws_subnet.public_subnet_2.id
+  route_table_id = aws_route_table.public.id
+}
 # -------------------- Security Group --------------------
 resource "aws_security_group" "ecs_sg" {
   name        = "${var.app_name}-sg"
@@ -90,7 +100,7 @@ resource "aws_lb" "alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.ecs_sg.id]
-  subnets            = [aws_subnet.public_1.id]
+  subnets            = [aws_subnet.public_1.id, aws_subnet.public_subnet_2.id]
 }
 
 resource "aws_lb_target_group" "tg" {
