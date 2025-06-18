@@ -106,7 +106,7 @@ resource "aws_lb" "alb" {
 resource "aws_lb_target_group" "tg" {
   name     = "ecs-ci-cd-app-tg"
   port     = 3000
-  protocol = "tcp"
+  protocol = "TCP"
   vpc_id   = aws_vpc.main.id
 
   target_type = "ip"  # ✅ MUST be 'ip' for awsvpc mode (Fargate)
