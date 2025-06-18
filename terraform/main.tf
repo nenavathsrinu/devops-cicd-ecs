@@ -104,18 +104,24 @@ resource "aws_lb" "alb" {
 }
 
 resource "aws_lb_target_group" "tg" {
-  name     = "${var.app_name}-tg"
+  name     = "ecs-ci-cd-app-tg"
   port     = 3000
-  protocol = "HTTP"
+  protocol = "tcp"
   vpc_id   = aws_vpc.main.id
+
+  target_type = "ip"  # ✅ MUST be 'ip' for awsvpc mode (Fargate)
 
   health_check {
     path                = "/"
-    protocol            = "HTTP"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 2
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "ecs-ci-cd-target-group"
   }
 }
 
