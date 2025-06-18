@@ -5,7 +5,7 @@ pipeline {
     choice(
       name: 'ACTION',
       choices: ['create', 'destroy'],
-      description: 'Choose whether to create or destroy the ECS infrastructure.'
+      description: 'Select whether to create or destroy ECS infrastructure'
     )
   }
 
@@ -17,7 +17,6 @@ pipeline {
   }
 
   stages {
-
     stage('📥 Clone GitHub Repo') {
       steps {
         git url: 'https://github.com/nenavathsrinu/devops-cicd-ecs.git', branch: 'main'
@@ -26,7 +25,7 @@ pipeline {
 
     stage('🐳 Build & Push Docker Image to ECR') {
       when {
-        expression { return params.ACTION == 'create' }
+        expression { params.ACTION == 'create' }
       }
       steps {
         dir('app') {
@@ -45,10 +44,10 @@ pipeline {
       }
     }
 
-    stage('🛠️ Terraform Create/Destroy ECS Infra') {
+    stage('🛠️ Terraform Apply/Destroy ECS Infra') {
       steps {
         dir('terraform') {
-          withCredentials([[
+          withCredentials([[ 
             $class: 'AmazonWebServicesCredentialsBinding',
             credentialsId: 'aws-credentials'
           ]]) {
@@ -57,7 +56,7 @@ pipeline {
                 sh """
                   echo "⚠️ Destroying ECS Infrastructure..."
                   terraform init
-                  terraform destroy -auto-approve
+                  terraform destroy -auto-approve -var="image_url=dummy"
                 """
               } else {
                 sh """
@@ -74,7 +73,7 @@ pipeline {
 
     stage('🔁 Force ECS Service Update') {
       when {
-        expression { return params.ACTION == 'create' }
+        expression { params.ACTION == 'create' }
       }
       steps {
         sh """
@@ -91,10 +90,10 @@ pipeline {
 
   post {
     success {
-      echo "✅ CI/CD pipeline (${params.ACTION.toUpperCase()}) completed successfully!"
+      echo "✅ Pipeline '${params.ACTION}' completed successfully!"
     }
     failure {
-      echo "❌ Pipeline failed during ${params.ACTION.toUpperCase()} operation. Check logs!"
+      echo "❌ Pipeline failed during '${params.ACTION}'. Check logs."
     }
   }
 }
